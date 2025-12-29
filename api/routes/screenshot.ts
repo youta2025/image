@@ -117,7 +117,11 @@ router.post('/', async (req, res) => {
                     // Targeted removal for "Login" overlays
                     if ((z > 50 || style.position === 'fixed') && 
                         (text.includes('登录') || text.includes('Login') || text.includes('验证') || text.includes('扫码'))) {
-                        div.remove();
+                        
+                        // Protect profile header from accidental deletion
+                        if (!div.querySelector('.avatar') && !div.querySelector('.nickname')) {
+                             div.remove();
+                        }
                     }
                     
                     // Specific Douyin "View More/Login" card mask

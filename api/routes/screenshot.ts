@@ -185,10 +185,39 @@ router.post('/', async (req, res) => {
     const base64Image = screenshotBuffer.toString('base64');
     const dataUrl = `data:image/png;base64,${base64Image}`;
 
+    // Upload to a temporary hosting service or just return the data URL
+    // Since the user asked for "url format" but we don't have object storage configured (S3/OSS),
+    // we can't easily return a public http:// url for the image unless we save it to disk and serve it static.
+    // 
+    // However, saving to disk on Render (ephemeral filesystem) and serving it is possible but temporary.
+    // Let's implement a simple local file save and return the URL relative to our server.
+    
+    const fs = require('fs');
+    const path = require('path');
+    const crypto = require('crypto');
+    
+    // Create uploads directory if not exists
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)){
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    
+    const fileName = `${crypto.randomUUID()}.png`;
+    const filePath = path.join(uploadsDir, fileName);
+    
+    fs.writeFileSync(filePath, screenshotBuffer);
+    
+    // Construct public URL
+    // Assuming the server is reachable via the host header or a configured base URL
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const publicUrl = `${protocol}://${host}/uploads/${fileName}`;
+
     res.json({
       success: true,
       data: {
-        image: dataUrl
+        image: dataUrl, // Keep base64 for compatibility
+        url: publicUrl  // Add public URL
       }
     });
 

@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: coze-screenshot-api
+    restart: always
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+    volumes:
+      # Persist uploads directory so images don't vanish on restart
+      - ./public/uploads:/app/public/uploads
+    # Increase shared memory size for Chrome to prevent crashes
+    shm_size: '2gb'

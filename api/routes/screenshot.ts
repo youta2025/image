@@ -20,95 +20,81 @@ router.post('/', async (req, res) => {
   // Normalize URL
   url = url.trim();
   if (!/^https?:\/\//i.test(url)) {
-      // If the user forgot http/https, we could add it, or return error.
-      // But based on user feedback "please enter a valid URL using https protocol",
-      // let's ensure we support valid input even if it has extra spaces.
-      // And we can try to prepend https:// if missing, or just validation.
-      if (!url.startsWith('http')) {
-           url = 'https://' + url;
-      }
+    if (!url.startsWith('http')) {
+       url = 'https://' + url;
+    }
   }
 
   let browser;
   try {
-    // Launch browser
+    // Launch browser with more anti-detect args
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox'] // Useful for some environments
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-infobars',
+        '--window-size=1920,1080',
+      ],
+      ignoreDefaultArgs: ['--enable-automation'],
     });
     
     const context = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      deviceScaleFactor: 1,
+      locale: 'zh-CN',
+      timezoneId: 'Asia/Shanghai',
     });
     
     const page = await context.newPage();
 
-    // Navigate to URL
-    // We use domcontentloaded first to ensure we get to the page quickly.
-    // Then we try to wait for networkidle, but don't fail if it times out (e.g. streaming sites).
+    // Add scripts to mask webdriver
+    await page.addInitScript(() => {
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined,
+      });
+    });
+
     try {
       // Add custom headers to mimic real browser
       await page.setExtraHTTPHeaders({
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Referer': 'https://www.douyin.com/',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
       });
 
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
-      // Extra wait for dynamic content
-      await page.waitForTimeout(2000);
-    } catch (e) {
+      // Use domcontentloaded + fixed wait instead of networkidle which can be flaky on video sites
+      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      
+      // Wait for 5 seconds to allow React/Vue apps to hydrate and anti-bot checks to pass
+      await page.waitForTimeout(5000);
+      
+    } catch (e: any) {
       console.error('Navigation error:', e);
-      // If navigation failed completely, we might still want to try capturing if content exists,
-      // but usually goto throws if it can't load the page.
-      // If it's just a timeout, we might be able to proceed.
+      // If it's a timeout, we proceed to screenshot anyway to see what loaded
       if (!e.message.includes('Timeout')) {
         throw e;
       }
     }
 
-    // Logic to close verification codes / login modals / popups
-    // This is heuristic-based and might not cover all cases
-    const commonCloseSelectors = [
-      'button[aria-label="Close"]',
-      'button[aria-label="close"]',
-      'button[title="Close"]',
-      '.close',
-      '.modal-close',
-      '.popup-close',
-      'button:has-text("Close")',
-      'button:has-text("No thanks")',
-      'button:has-text("Not now")',
-      'button:has-text("Maybe later")',
-      'button:has-text("关闭")',
-      'button:has-text("以后再说")',
-      '[data-dismiss="modal"]',
-      '.ant-modal-close',
-      '.el-dialog__headerbtn',
-      'div[role="button"][aria-label="Close"]',
-      'svg[aria-label="Close"]',
-      // Douyin / TikTok specific (heuristic)
-      '.dy-account-close',
-      '[class*="close"]', 
-      '[class*="Close"]',
-      '#login-pannel',           // Douyin login panel
-      '.login-mask',             // Douyin login mask
-      '[data-e2e="login-modal"]',// Douyin login modal
-      '.dy-account-close',       // Douyin close button
-      '.captcha_verify_container', // Captcha container
-      '#captcha_container',
-      '.captcha-verify-box',
-      '#captcha-verify-image',   // Captcha image
-      '.verify-bar'             // Verify slider
-    ];
-
-    // Scroll down a bit to trigger lazy loading or popups
+    // --- DOM CLEANUP LOGIC ---
+    
+    // Scroll down to trigger loading
     await page.evaluate(() => window.scrollBy(0, 500));
-    await page.waitForTimeout(2000); // Wait a bit more for popups to appear
+    await page.waitForTimeout(1000);
 
     // Aggressive cleanup logic using evaluate
     await page.evaluate(() => {
-        // 1. Remove specific known selectors for Douyin and others
         const selectorsToRemove = [
             '#login-pannel',           // Douyin login panel
             '.login-mask',             // Douyin login mask
@@ -129,22 +115,21 @@ router.post('/', async (req, res) => {
             '.modal-backdrop',
             '#passport-login-pop',     // Weibo/others
             '.sign-in-modal',
-            // Additional Douyin selectors
             '[data-e2e="dy-login-container"]',
             '.dy-login-mask',
             '.login-dialog-wrapper',
+            // Banner ads
+            '.banner',
+            '.ad-container',
         ];
 
         selectorsToRemove.forEach(selector => {
             try {
-                document.querySelectorAll(selector).forEach(el => {
-                    el.remove();
-                });
+                document.querySelectorAll(selector).forEach(el => el.remove());
             } catch (e) {}
         });
 
-        // 2. Heuristic removal: Find high z-index fixed/absolute elements containing keywords
-        // This is "nuclear option" to remove overlays
+        // Heuristic removal: Find high z-index fixed/absolute elements containing keywords
         const allElements = document.querySelectorAll('div, section, aside, article');
         allElements.forEach(el => {
             try {
@@ -157,51 +142,24 @@ router.post('/', async (req, res) => {
                     const keywords = ['登录', '验证', '扫码', 'Login', 'Sign in', 'Verify', 'Captcha'];
                     const hasKeyword = keywords.some(kw => text.includes(kw));
                     
-                    // If it covers a large area or has keywords, remove it
                     const rect = el.getBoundingClientRect();
                     const isLarge = rect.width > 300 && rect.height > 300;
                     
                     if (hasKeyword || (isLarge && style.backgroundColor !== 'rgba(0, 0, 0, 0)')) {
-                        // Double check we are not removing the main content
-                        // Usually main content is not fixed with high z-index
                         el.remove();
                     }
                 }
             } catch (e) {}
         });
 
-        // 3. Restore scrolling
+        // Restore scrolling
         document.body.style.overflow = 'auto';
         document.documentElement.style.overflow = 'auto';
     });
     
-    // Small pause to ensure rendering updates after removal
     await page.waitForTimeout(500);
 
-    // Fallback: Click specific close buttons if they still exist (maybe inside iframes?)
-    // Note: Cross-origin iframes are hard to touch, but same-origin might work.
-    // We already tried to remove containers, so this is just a backup.
-    const textSelectors = [
-      'button:has-text("Close")',
-      'button:has-text("关闭")',
-      'button:has-text("No thanks")',
-      'button:has-text("Not now")',
-      '[aria-label="Close"]',
-      '.dy-account-close'
-    ];
-
-    for (const selector of textSelectors) {
-      try {
-        const locators = page.locator(selector);
-        const count = await locators.count();
-        if (count > 0) {
-            await locators.first().click({ timeout: 500 }).catch(() => {});
-        }
-      } catch (e) {}
-    }
-
-    // Additional specific handling for common patterns if needed
-    // e.g. pressing Escape key which often closes modals
+    // Press Escape as a fallback
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
 
@@ -210,14 +168,7 @@ router.post('/', async (req, res) => {
     const base64Image = screenshotBuffer.toString('base64');
     const dataUrl = `data:image/png;base64,${base64Image}`;
 
-    // Upload to a temporary hosting service or just return the data URL
-    // Since the user asked for "url format" but we don't have object storage configured (S3/OSS),
-    // we can't easily return a public http:// url for the image unless we save it to disk and serve it static.
-    // 
-    // However, saving to disk on Render (ephemeral filesystem) and serving it is possible but temporary.
-    // Let's implement a simple local file save and return the URL relative to our server.
-    
-    // Create uploads directory if not exists
+    // Save to disk
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
     if (!fs.existsSync(uploadsDir)){
         fs.mkdirSync(uploadsDir, { recursive: true });
@@ -228,8 +179,6 @@ router.post('/', async (req, res) => {
     
     fs.writeFileSync(filePath, screenshotBuffer);
     
-    // Construct public URL
-    // Assuming the server is reachable via the host header or a configured base URL
     const protocol = req.protocol;
     const host = req.get('host');
     const publicUrl = `${protocol}://${host}/uploads/${fileName}`;
@@ -237,16 +186,28 @@ router.post('/', async (req, res) => {
     res.json({
       success: true,
       data: {
-        image: dataUrl, // Keep base64 for compatibility
-        url: publicUrl  // Add public URL
+        image: dataUrl,
+        url: publicUrl
       }
     });
 
   } catch (error: any) {
     console.error('Screenshot error:', error);
+    
+    // Attempt to capture a debug screenshot if browser is open
+    let debugUrl = null;
+    try {
+        if (browser) {
+           // We might not have 'page' reference easily here without refactoring, 
+           // but normally we fail before page creation or during navigation.
+           // If we failed inside, let's just return the error.
+        }
+    } catch(e) {}
+
     res.status(500).json({ 
       success: false, 
-      error: error.message || 'Failed to capture screenshot' 
+      error: error.message || 'Failed to capture screenshot',
+      details: 'Check server logs for more info.'
     });
   } finally {
     if (browser) {

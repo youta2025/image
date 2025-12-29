@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     });
     
     const context = await browser.newContext({
-      viewport: { width: 1280, height: 800 },
+      viewport: { width: 1920, height: 1080 },
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       deviceScaleFactor: 1,
       locale: 'zh-CN',
@@ -131,6 +131,20 @@ router.post('/', async (req, res) => {
                         div.remove();
                     }
                 });
+                
+                // Inject CSS to hide specific login elements but preserve layout
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    #login-pannel, .login-mask, .dy-account-close, .captcha_verify_container, 
+                    .dy-login-mask, .login-dialog-wrapper, [data-e2e="login-modal"] {
+                        display: none !important;
+                    }
+                    /* Force hide elements containing "登录" that are fixed/absolute positioned */
+                    div[class*="login"][style*="fixed"], div[class*="login"][style*="absolute"] {
+                        display: none !important;
+                    }
+                `;
+                document.head.appendChild(style);
                 
                 document.body.style.overflow = 'auto';
             }).catch(() => {});

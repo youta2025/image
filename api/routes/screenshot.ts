@@ -44,10 +44,9 @@ router.post('/', async (req, res) => {
     // We use domcontentloaded first to ensure we get to the page quickly.
     // Then we try to wait for networkidle, but don't fail if it times out (e.g. streaming sites).
     try {
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
-      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {
-        console.log('Network idle timeout ignored, proceeding...');
-      });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+      // Extra wait for dynamic content
+      await page.waitForTimeout(3000);
     } catch (e) {
       console.error('Navigation error:', e);
       // If navigation failed completely, we might still want to try capturing if content exists,

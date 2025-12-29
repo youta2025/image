@@ -87,14 +87,44 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // --- DOM CLEANUP LOGIC ---
-    
+    // --- DYNAMIC CLEANUP LOGIC (Persistent) ---
+    // Start a timer to aggressively remove popups every 100ms for 5 seconds
+    const cleanupInterval = setInterval(async () => {
+        try {
+            if (page.isClosed()) return;
+            await page.evaluate(() => {
+                const selectors = [
+                    '#login-pannel', '.login-mask', '[data-e2e="login-modal"]', '.dy-account-close',
+                    '.captcha_verify_container', '#captcha_container', '.captcha-verify-box',
+                    '.dy-login-mask', '.login-dialog-wrapper', '[class*="login-modal"]'
+                ];
+                selectors.forEach(s => document.querySelectorAll(s).forEach(el => el.remove()));
+                
+                // Force remove any high z-index overlay
+                document.querySelectorAll('div').forEach(div => {
+                    const z = parseInt(window.getComputedStyle(div).zIndex);
+                    if (z > 999 && div.innerText.includes('登录')) {
+                        div.remove();
+                    }
+                });
+                
+                document.body.style.overflow = 'auto';
+            }).catch(() => {});
+        } catch (e) {}
+    }, 100);
+
     // Scroll down to trigger loading
     await page.evaluate(() => window.scrollBy(0, 500));
-    await page.waitForTimeout(1000);
+    
+    // Wait for dynamic content
+    await page.waitForTimeout(2000); 
+    
+    // Stop the cleanup interval
+    clearInterval(cleanupInterval);
 
-    // Aggressive cleanup logic using evaluate
+    // Final cleanup pass
     await page.evaluate(() => {
+
         const selectorsToRemove = [
             '#login-pannel',           // Douyin login panel
             '.login-mask',             // Douyin login mask

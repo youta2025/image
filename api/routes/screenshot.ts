@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
 
       await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       // Extra wait for dynamic content
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(2000);
     } catch (e) {
       console.error('Navigation error:', e);
       // If navigation failed completely, we might still want to try capturing if content exists,

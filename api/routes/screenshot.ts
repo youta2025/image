@@ -128,7 +128,7 @@ router.post('/', async (req, res) => {
                 const hasHighZIndex = parseInt(style.zIndex) > 50;
                 
                 if (isOverlay && hasHighZIndex) {
-                    const text = el.innerText || '';
+                    const text = (el as HTMLElement).innerText || '';
                     const keywords = ['登录', '验证', '扫码', 'Login', 'Sign in', 'Verify', 'Captcha'];
                     const hasKeyword = keywords.some(kw => text.includes(kw));
                     

@@ -27,6 +27,24 @@ app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
+// Simple Request Logger Middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  // Log when request comes in
+  console.log(`[${new Date().toISOString()}] Incoming ${req.method} ${req.originalUrl}`);
+  if (req.method === 'POST' && req.body && req.body.url) {
+      console.log(` -> Target URL: ${req.body.url}`);
+  }
+
+  // Capture response finish
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`[${new Date().toISOString()}] Completed ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`);
+  });
+  
+  next();
+});
+
 // Serve static files from 'public' directory
 // This is where we store the temporary screenshot files
 // Fix: Mount 'public' directory to '/uploads' path specifically or root

@@ -44,9 +44,15 @@ router.post('/', async (req, res) => {
     // We use domcontentloaded first to ensure we get to the page quickly.
     // Then we try to wait for networkidle, but don't fail if it times out (e.g. streaming sites).
     try {
+      // Add custom headers to mimic real browser
+      await page.setExtraHTTPHeaders({
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      });
+
       await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
       // Extra wait for dynamic content
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(5000);
     } catch (e) {
       console.error('Navigation error:', e);
       // If navigation failed completely, we might still want to try capturing if content exists,

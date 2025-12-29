@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     });
     
     const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
+      viewport: { width: 1280, height: 800 },
       userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       deviceScaleFactor: 1,
       locale: 'zh-CN',
@@ -72,6 +72,14 @@ router.post('/', async (req, res) => {
         'Sec-Fetch-Site': 'same-origin',
         'Sec-Fetch-User': '?1',
       });
+
+      // Inject cookies to bypass login popup
+      const cookies = [
+        { name: 's_v_web_id', value: 'verify_mizs3ykm_t4sBNdPP_RsbF_4xsf_9N5Y_feM0SJ8PU6Ma', domain: '.douyin.com', path: '/' },
+        { name: 'UIFID_TEMP', value: 'e71d819f1cb72e7166823ce125547a3e5a83b631a52f7c0b3c34cd9714dd602d6da843c43d0edc368c042fa36fe1637a87d4b4876cd01cb571d61e372c8342fea74c93f5a851cea5e34f8779f4feb36e', domain: '.douyin.com', path: '/' },
+        { name: 'xg_device_score', value: '7.636526987346947', domain: '.douyin.com', path: '/' }
+      ];
+      await context.addCookies(cookies);
 
       // Use domcontentloaded + fixed wait instead of networkidle which can be flaky on video sites
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });

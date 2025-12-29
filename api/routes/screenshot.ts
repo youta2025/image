@@ -1,5 +1,8 @@
 import { Router } from 'express';
 import { chromium } from 'playwright';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 const router = Router();
 
@@ -191,10 +194,6 @@ router.post('/', async (req, res) => {
     // 
     // However, saving to disk on Render (ephemeral filesystem) and serving it is possible but temporary.
     // Let's implement a simple local file save and return the URL relative to our server.
-    
-    const fs = require('fs');
-    const path = require('path');
-    const crypto = require('crypto');
     
     // Create uploads directory if not exists
     const uploadsDir = path.join(process.cwd(), 'public', 'uploads');

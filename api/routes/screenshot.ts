@@ -86,7 +86,16 @@ router.post('/', async (req, res) => {
       // Douyin / TikTok specific (heuristic)
       '.dy-account-close',
       '[class*="close"]', 
-      '[class*="Close"]'
+      '[class*="Close"]',
+      '#login-pannel',           // Douyin login panel
+      '.login-mask',             // Douyin login mask
+      '[data-e2e="login-modal"]',// Douyin login modal
+      '.dy-account-close',       // Douyin close button
+      '.captcha_verify_container', // Captcha container
+      '#captcha_container',
+      '.captcha-verify-box',
+      '#captcha-verify-image',   // Captcha image
+      '.verify-bar'             // Verify slider
     ];
 
     // Scroll down a bit to trigger lazy loading or popups
@@ -100,7 +109,7 @@ router.post('/', async (req, res) => {
             '#login-pannel',           // Douyin login panel
             '.login-mask',             // Douyin login mask
             '[data-e2e="login-modal"]',// Douyin login modal
-            '.dy-account-close',       // Douyin close button (if we want to remove the container instead of clicking)
+            '.dy-account-close',       // Douyin close button
             '.captcha_verify_container', // Captcha container
             '#captcha_container',
             '.captcha-verify-box',
@@ -116,6 +125,10 @@ router.post('/', async (req, res) => {
             '.modal-backdrop',
             '#passport-login-pop',     // Weibo/others
             '.sign-in-modal',
+            // Additional Douyin selectors
+            '[data-e2e="dy-login-container"]',
+            '.dy-login-mask',
+            '.login-dialog-wrapper',
         ];
 
         selectorsToRemove.forEach(selector => {

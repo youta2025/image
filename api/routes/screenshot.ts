@@ -1,8 +1,12 @@
 import { Router } from 'express';
-import { chromium } from 'playwright';
+import { chromium } from 'playwright-extra';
+import stealth from 'puppeteer-extra-plugin-stealth';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+
+// Enable stealth plugin
+chromium.use(stealth());
 
 const router = Router();
 

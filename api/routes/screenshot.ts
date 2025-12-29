@@ -101,9 +101,21 @@ router.post('/', async (req, res) => {
                 selectors.forEach(s => document.querySelectorAll(s).forEach(el => el.remove()));
                 
                 // Force remove any high z-index overlay
-                document.querySelectorAll('div').forEach(div => {
-                    const z = parseInt(window.getComputedStyle(div).zIndex);
-                    if (z > 999 && div.innerText.includes('登录')) {
+                document.querySelectorAll('div, section').forEach(div => {
+                    const style = window.getComputedStyle(div);
+                    const z = parseInt(style.zIndex);
+                    const text = (div as HTMLElement).innerText || '';
+                    
+                    // Targeted removal for "Login" overlays
+                    if ((z > 50 || style.position === 'fixed') && 
+                        (text.includes('登录') || text.includes('Login') || text.includes('验证') || text.includes('扫码'))) {
+                        div.remove();
+                    }
+                    
+                    // Specific Douyin "View More/Login" card mask
+                    if (div.classList.contains('login-mask') || 
+                        div.id === 'login-pannel' ||
+                        text.includes('登录查看更多')) {
                         div.remove();
                     }
                 });

@@ -10,6 +10,7 @@ import express, {
 import cors from 'cors'
 import path from 'path'
 import dotenv from 'dotenv'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import screenshotRoutes from './routes/screenshot.js'
@@ -46,22 +47,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files from 'public' directory
-// This is where we store the temporary screenshot files
-// Fix: Mount 'public' directory to '/uploads' path specifically or root
-// If we use app.use(express.static(...)), then 'public/uploads/x.png' is accessed via '/uploads/x.png'
-// However, if the file is truly 404, maybe process.cwd() is not what we expect in compiled TS code.
-// Let's try to be more robust by using __dirname relative path if possible, or debugging.
-// But first, let's explicitly mount the uploads directory to make the URL structure clearer.
-
-// Option 1: Mount public folder to root (Current) -> /uploads/file.png
-// Option 2: Mount uploads folder to /uploads -> /uploads/file.png
-
-// Let's try Option 2 to be safer and ensure the path mapping is correct.
-// We also add logging to debug static file requests.
-
 app.use('/uploads', (req, res, next) => {
-  // Simple debug log for static files
-  // console.log('Accessing upload:', req.path);
   next();
 }, express.static(path.join(process.cwd(), 'public', 'uploads')));
 
@@ -86,6 +72,53 @@ app.use(
     })
   },
 )
+
+/**
+ * Cleanup Task: Delete old files every hour
+ * Retain files for 1 hour (3600000 ms)
+ */
+const cleanupOldFiles = () => {
+    const uploadsDir = path.join(process.cwd(), 'public', 'uploads');
+    const MAX_AGE = 60 * 60 * 1000; // 1 hour
+
+    console.log(`[Cleanup] Starting cleanup of ${uploadsDir}`);
+
+    if (fs.existsSync(uploadsDir)) {
+        fs.readdir(uploadsDir, (err, files) => {
+            if (err) {
+                console.error('[Cleanup] Error reading directory:', err);
+                return;
+            }
+
+            const now = Date.now();
+            let deletedCount = 0;
+
+            files.forEach(file => {
+                const filePath = path.join(uploadsDir, file);
+                fs.stat(filePath, (err, stats) => {
+                    if (err) return;
+
+                    if (now - stats.mtimeMs > MAX_AGE) {
+                        fs.unlink(filePath, (err) => {
+                            if (err) console.error(`[Cleanup] Failed to delete ${file}`);
+                            else {
+                                // console.log(`[Cleanup] Deleted old file: ${file}`);
+                                deletedCount++;
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+};
+
+// Run cleanup immediately on start
+cleanupOldFiles();
+
+// Schedule cleanup every 30 minutes
+setInterval(cleanupOldFiles, 30 * 60 * 1000);
+
 
 /**
  * error handler middleware

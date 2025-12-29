@@ -28,6 +28,5 @@ RUN npm run build
 EXPOSE 3002
 
 # Start server
-# We use tsx to run the typescript server directly or we could compile it
-# For production, it's better to compile, but for simplicity here we use tsx or nodemon
-CMD ["npm", "run", "server:dev"]
+# Use tsx directly for production to avoid nodemon overhead
+CMD ["npm", "start"]

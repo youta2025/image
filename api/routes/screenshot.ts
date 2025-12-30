@@ -10,6 +10,44 @@ chromium.use(stealth());
 
 const router = Router();
 
+// --- Concurrency Control ---
+const MAX_CONCURRENT_REQUESTS = 5;
+let currentRequests = 0;
+// Queue item structure: { resolve: Function, timeout: NodeJS.Timeout }
+const requestQueue: Array<{ resolve: () => void, timeout: NodeJS.Timeout }> = [];
+
+const acquireLock = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
+        if (currentRequests < MAX_CONCURRENT_REQUESTS) {
+            currentRequests++;
+            resolve();
+        } else {
+            console.log(`[Queue] Request queued. Current active: ${currentRequests}, Queue length: ${requestQueue.length + 1}`);
+            
+            const timeout = setTimeout(() => {
+                // Remove from queue if timed out
+                const index = requestQueue.findIndex(item => item.resolve === resolve);
+                if (index > -1) requestQueue.splice(index, 1);
+                reject(new Error('Queue timeout: Server is busy, please try again later.'));
+            }, 120000); // 120 seconds timeout
+
+            requestQueue.push({ resolve, timeout });
+        }
+    });
+};
+
+const releaseLock = () => {
+    currentRequests--;
+    if (requestQueue.length > 0) {
+        const next = requestQueue.shift();
+        if (next) {
+            clearTimeout(next.timeout);
+            currentRequests++; // Mark as active immediately
+            next.resolve();
+        }
+    }
+};
+
 router.post('/', async (req, res) => {
   let { url } = req.body;
 
@@ -24,6 +62,12 @@ router.post('/', async (req, res) => {
        url = 'https://' + url;
     }
   }
+
+  try {
+      // Wait for a slot
+      await acquireLock();
+      
+      // --- Start Processing ---
 
   let browser;
   try {
@@ -281,6 +325,8 @@ router.post('/', async (req, res) => {
     if (browser) {
       await browser.close();
     }
+    // Release the slot
+    releaseLock();
   }
 });
 

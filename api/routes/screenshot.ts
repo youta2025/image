@@ -63,14 +63,11 @@ router.post('/', async (req, res) => {
     }
   }
 
-  try {
-      // Wait for a slot
-      await acquireLock();
-      
-      // --- Start Processing ---
-
   let browser;
   try {
+    // Wait for a slot
+    await acquireLock();
+    
     // Launch browser with more anti-detect args
     browser = await chromium.launch({
       headless: true,

@@ -60,6 +60,58 @@
 
     > 注意：由于您使用的是非标准 HTTPS 端口 (3004)，浏览器访问时必须带上端口号。
 
+### Cloudflare HTTPS Setup (推荐)
+
+如果您希望使用 Cloudflare 提供的免费 HTTPS，有两种方式：
+
+#### 方式一：Cloudflare Proxy (最简单)
+1.  将您的域名解析到 Cloudflare。
+2.  在 DNS 设置中，将 A 记录指向服务器 IP (`115.191.14.89`)，并开启 **Proxy status** (橙色云朵)。
+3.  在 SSL/TLS 设置中开启 **Always Use HTTPS**。
+4.  Cloudflare 会自动处理 HTTPS，并转发请求到您的 HTTP 端口。
+
+#### 方式二：Cloudflare Tunnel (更安全，无需公网端口)
+Cloudflare Tunnel (cloudflared) 可以让您的服务器在不暴露任何入站端口的情况下连接到 Cloudflare 网络。
+
+1.  **安装 cloudflared** (在服务器上运行):
+    ```bash
+    # 下载并安装
+    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    sudo dpkg -i cloudflared.deb
+    ```
+
+2.  **登录 Cloudflare**:
+    ```bash
+    cloudflared tunnel login
+    ```
+    (这将给出一个 URL，复制到浏览器中登录并授权)
+
+3.  **创建隧道**:
+    ```bash
+    cloudflared tunnel create my-tunnel
+    ```
+    (记下输出的 Tunnel ID)
+
+4.  **配置路由 (DNS)**:
+    将域名指向这个隧道：
+    ```bash
+    cloudflared tunnel route dns my-tunnel your-domain.com
+    ```
+
+5.  **运行隧道**:
+    将隧道流量转发到本地应用 (端口 3003)：
+    ```bash
+    cloudflared tunnel run --url http://localhost:3003 my-tunnel
+    ```
+
+6.  **作为服务运行 (推荐)**:
+    为了让隧道在后台稳定运行，建议将其安装为系统服务：
+    ```bash
+    cloudflared service install
+    systemctl start cloudflared
+    systemctl enable cloudflared
+    ```
+
 ### 多项目部署说明
 
 由于您服务器上已经运行了其他项目，为了避免端口冲突，本项目的 Docker 配置已默认将对外端口映射为 **3003**。

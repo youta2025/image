@@ -35,6 +35,31 @@
     git clone git@github.com:your-username/image-workshop.git
     ```
 
+### HTTPS / SSL 配置
+
+为了满足 HTTPS 需求，本项目新增了 Nginx 容器来处理 SSL 终止。
+
+1.  **准备 SSL 证书**：
+    您需要将您的 SSL 证书文件（`server.crt` 和 `server.key`）放置在项目的 `nginx/ssl/` 目录下。
+    *   `nginx/ssl/server.crt`
+    *   `nginx/ssl/server.key`
+
+    > 如果没有证书，可以使用 OpenSSL 生成自签名证书（仅用于测试）：
+    > `openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout nginx/ssl/server.key -out nginx/ssl/server.crt`
+
+2.  **端口映射**：
+    *   **HTTP (3003)**: 会自动重定向到 HTTPS。
+    *   **HTTPS (3004)**: 安全访问入口。
+
+3.  **启动**：
+    ```bash
+    docker-compose up -d --build
+    ```
+
+    访问地址：`https://115.191.14.89:3004`
+
+    > 注意：由于您使用的是非标准 HTTPS 端口 (3004)，浏览器访问时必须带上端口号。
+
 ### 多项目部署说明
 
 由于您服务器上已经运行了其他项目，为了避免端口冲突，本项目的 Docker 配置已默认将对外端口映射为 **3003**。

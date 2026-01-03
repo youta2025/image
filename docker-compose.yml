@@ -4,12 +4,26 @@ services:
   app:
     build: .
     container_name: image-workshop-app
-    ports:
-      - "3003:3002"
+    # We remove public port mapping because Nginx will handle external traffic
+    # ports:
+    #   - "3003:3002"
     environment:
       - NODE_ENV=production
       - PORT=3002
     volumes:
-      # Persist uploads even if container is recreated
       - ./public/uploads:/app/public/uploads
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: image-workshop-nginx
+    ports:
+      - "3003:80"   # HTTP redirected to HTTPS
+      - "3004:443"  # HTTPS port (Mapped to host 3004 to avoid conflict if host 443 is taken)
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./public/uploads:/app/public/uploads # For serving static files directly (optional)
+    depends_on:
+      - app
     restart: unless-stopped

@@ -47,6 +47,16 @@ async function getImageBuffer(imageUrl: string): Promise<Buffer> {
     }
   }
 
+  // Basic URL validation
+  try {
+    const parsedUrl = new URL(imageUrl);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      throw new Error('Invalid URL protocol');
+    }
+  } catch (e) {
+    throw new Error('Invalid URL format');
+  }
+
   const response = await fetch(imageUrl);
   if (!response.ok) {
     throw new Error(`Failed to fetch image: ${response.statusText}`);

@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音截图测试</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        input { width: 70%; padding: 10px; font-size: 16px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #fe2c55; color: white; border: none; border-radius: 4px; }
+        button:disabled { background: #ccc; }
+        #result { margin-top: 20px; border: 1px solid #ddd; padding: 10px; min-height: 200px; }
+        img { max-width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .log { background: #f5f5f5; padding: 10px; font-family: monospace; font-size: 12px; height: 150px; overflow-y: scroll; border: 1px solid #eee; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>📸 截图 API 测试工具</h1>
+    <p>输入抖音个人主页链接，测试去弹窗效果。</p>
+    
+    <div style="margin-bottom: 10px;">
+        <input type="text" id="urlInput" value="https://www.douyin.com/user/MS4wLjABAAAAl772J8S_5bblTWU5GsGNMZSGnyi9r8r2YFkULTV6nsc" placeholder="输入链接...">
+        <button onclick="takeScreenshot()" id="btn">开始截图</button>
+    </div>
+
+    <div class="log" id="logs"></div>
+    <div id="result"></div>
+
+    <script>
+        function log(msg) {
+            const el = document.getElementById('logs');
+            el.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>`;
+            el.scrollTop = el.scrollHeight;
+        }
+
+        async function takeScreenshot() {
+            const url = document.getElementById('urlInput').value;
+            const btn = document.getElementById('btn');
+            const resultDiv = document.getElementById('result');
+            
+            if (!url) return alert('请输入链接');
+            
+            btn.disabled = true;
+            btn.innerText = '截图生成中...';
+            resultDiv.innerHTML = '<p>正在请求 API...</p>';
+            log(`开始请求: ${url}`);
+
+            try {
+                const res = await fetch('http://localhost:3002/api/screenshot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+
+                log(`响应状态: ${res.status}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    log('✅ 截图成功！');
+                    resultDiv.innerHTML = `
+                        <h3>截图结果：</h3>
+                        <p>URL: <a href="${data.data.url}" target="_blank">${data.data.url}</a></p>
+                        <img src="${data.data.image}" alt="截图">
+                    `;
+                } else {
+                    log(`❌ 失败: ${data.error}`);
+                    resultDiv.innerHTML = `<p style="color:red">错误: ${data.error}</p>`;
+                }
+            } catch (e) {
+                log(`❌ 网络错误: ${e.message}`);
+                resultDiv.innerHTML = `<p style="color:red">网络请求失败，请确保 server:dev 已启动</p>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '开始截图';
+            }
+        }
+    </script>
+</body>
+</html>

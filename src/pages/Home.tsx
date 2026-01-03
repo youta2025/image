@@ -1,135 +1,82 @@
-import { useState } from 'react';
-import { Camera, Loader2, AlertCircle } from 'lucide-react';
+
+import { Link } from 'react-router-dom';
+import { Wand2, Image as ImageIcon, Sparkles, Layers } from 'lucide-react';
 
 export default function Home() {
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleCapture = async () => {
-    if (!url) return;
-    
-    // Basic validation
-    let targetUrl = url;
-    if (!/^https?:\/\//i.test(url)) {
-      targetUrl = 'https://' + url;
-    }
-
-    setLoading(true);
-    setError(null);
-    setImage(null);
-
-    try {
-      const response = await fetch('/api/screenshot', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ url: targetUrl }),
-      });
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to capture screenshot');
-      }
-
-      setImage(data.data.image);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Web Page Screenshot
-          </h1>
-          <p className="mt-3 text-lg text-gray-500">
-            Enter a URL to capture a screenshot. We'll attempt to close popups automatically.
-          </p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Hero Section */}
+      <div className="relative bg-indigo-800 overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            className="w-full h-full object-cover opacity-20"
+            src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80"
+            alt="Background"
+          />
+          <div className="absolute inset-0 bg-indigo-800 mix-blend-multiply" />
         </div>
+        <div className="relative max-w-7xl mx-auto py-24 px-4 sm:py-32 sm:px-6 lg:px-8">
+          <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl">
+            让您的图片焕发新生
+          </h1>
+          <p className="mt-6 text-xl text-indigo-100 max-w-3xl">
+            使用我们先进的处理工具，将普通照片转化为优质的设计素材。
+            只需几秒钟，即可应用纹理、描边和艺术效果。
+          </p>
+          <div className="mt-10">
+            <Link
+              to="/editor"
+              className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50 md:py-4 md:text-lg md:px-10"
+            >
+              开始创作
+              <Wand2 className="ml-2 h-5 w-5" />
+            </Link>
+          </div>
+        </div>
+      </div>
 
-        <div className="mt-8 bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
-          <div className="space-y-6">
-            <div>
-              <label htmlFor="url" className="block text-sm font-medium text-gray-700">
-                Website URL
-              </label>
-              <div className="mt-1 relative rounded-md shadow-sm">
-                <input
-                  type="text"
-                  name="url"
-                  id="url"
-                  className="focus:ring-indigo-500 focus:border-indigo-500 block w-full pl-3 pr-12 sm:text-sm border-gray-300 rounded-md py-3 border"
-                  placeholder="example.com"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleCapture()}
-                />
+      {/* Features Section */}
+      <div className="py-16 bg-white overflow-hidden lg:py-24">
+        <div className="relative max-w-xl mx-auto px-4 sm:px-6 lg:px-8 lg:max-w-7xl">
+          <div className="relative">
+            <h2 className="text-center text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              专业级效果
+            </h2>
+            <p className="mt-4 max-w-3xl mx-auto text-center text-xl text-gray-500">
+              打造惊艳视觉素材所需的一切。
+            </p>
+          </div>
+
+          <div className="relative mt-12 lg:mt-24 lg:grid lg:grid-cols-3 lg:gap-8">
+            <div className="p-6 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mb-4">
+                <ImageIcon className="h-6 w-6" />
               </div>
+              <h3 className="text-lg font-medium text-gray-900">高清原图上传</h3>
+              <p className="mt-2 text-base text-gray-500">
+                支持高分辨率图片。上传、处理和下载，全程无损画质。
+              </p>
             </div>
 
-            <button
-              onClick={handleCapture}
-              disabled={loading || !url}
-              className={`w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                loading || !url
-                  ? 'bg-indigo-400 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500'
-              }`}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-5 w-5" />
-                  Capturing...
-                </>
-              ) : (
-                <>
-                  <Camera className="-ml-1 mr-2 h-5 w-5" />
-                  Take Screenshot
-                </>
-              )}
-            </button>
-
-            {error && (
-              <div className="rounded-md bg-red-50 p-4">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Error</h3>
-                    <div className="mt-2 text-sm text-red-700">
-                      <p>{error}</p>
-                    </div>
-                  </div>
-                </div>
+            <div className="p-6 bg-gray-50 rounded-lg mt-8 lg:mt-0">
+              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mb-4">
+                <Sparkles className="h-6 w-6" />
               </div>
-            )}
+              <h3 className="text-lg font-medium text-gray-900">智能效果</h3>
+              <p className="mt-2 text-base text-gray-500">
+                自动应用描边、纹理叠加和调色等复杂滤镜。
+              </p>
+            </div>
 
-            {image && (
-              <div className="mt-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Result</h3>
-                <div className="border rounded-lg overflow-hidden shadow-lg">
-                  <img src={image} alt="Screenshot" className="w-full h-auto" />
-                </div>
-                <div className="mt-2 text-right">
-                  <a
-                    href={image}
-                    download="screenshot.png"
-                    className="text-indigo-600 hover:text-indigo-500 text-sm font-medium"
-                  >
-                    Download Image
-                  </a>
-                </div>
+            <div className="p-6 bg-gray-50 rounded-lg mt-8 lg:mt-0">
+              <div className="flex items-center justify-center h-12 w-12 rounded-md bg-indigo-500 text-white mb-4">
+                <Layers className="h-6 w-6" />
               </div>
-            )}
+              <h3 className="text-lg font-medium text-gray-900">即时预览</h3>
+              <p className="mt-2 text-base text-gray-500">
+                实时查看变化。并排对比原图和处理后的效果。
+              </p>
+            </div>
           </div>
         </div>
       </div>

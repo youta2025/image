@@ -23,3 +23,15 @@ dist-ssr
 *.sln
 *.sw?
 .vite
+
+# Environment variables
+.env
+.env.*
+
+# Uploaded files
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Temp/Error files
+wenti
+错误

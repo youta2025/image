@@ -14,6 +14,8 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import authRoutes from './routes/auth.js'
 import screenshotRoutes from './routes/screenshot.js'
+import uploadRoutes from './routes/upload.js'
+import processRoutes from './routes/process.js'
 
 // for esm mode
 const __filename = fileURLToPath(import.meta.url)
@@ -51,6 +53,28 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, express.static(path.join(process.cwd(), 'public', 'uploads')));
 
+// Serve Frontend Static Assets (Production Mode)
+// Check if 'dist' directory exists (result of vite build)
+const distPath = path.join(process.cwd(), 'dist');
+if (fs.existsSync(distPath)) {
+    // Serve static files from dist
+    app.use(express.static(distPath));
+
+    // Handle SPA routing: serve index.html for any unknown non-API routes
+    // We place this BEFORE the 404 handler but AFTER API routes
+    // However, since API routes are defined below, we need to be careful.
+    // Actually, in Express, order matters.
+    // Correct approach:
+    // 1. Static files (done above)
+    // 2. API Routes (done below)
+    // 3. SPA Fallback (should be after API routes but before Error Handlers)
+} else {
+    // Serve the test UI at root (Dev Mode Fallback)
+    app.get('/', (req, res) => {
+        res.sendFile(path.join(process.cwd(), 'test_ui.html'));
+    });
+}
+
 // Keep the root static serve just in case for other public files
 app.use(express.static(path.join(process.cwd(), 'public')));
 
@@ -59,6 +83,8 @@ app.use(express.static(path.join(process.cwd(), 'public')));
  */
 app.use('/api/auth', authRoutes)
 app.use('/api/screenshot', screenshotRoutes)
+app.use('/api/upload', uploadRoutes)
+app.use('/api/process', processRoutes)
 
 /**
  * health
@@ -72,6 +98,17 @@ app.use(
     })
   },
 )
+
+// SPA Fallback: If request didn't match any API route and we are in production (dist exists), serve index.html
+if (fs.existsSync(distPath)) {
+    app.get('*', (req, res) => {
+        if (req.path.startsWith('/api')) {
+            // Let API 404s fall through to the 404 handler
+            return res.status(404).json({ success: false, error: 'API not found' });
+        }
+        res.sendFile(path.join(distPath, 'index.html'));
+    });
+}
 
 /**
  * Cleanup Task: Delete old files every hour

@@ -1,45 +1,39 @@
 #!/bin/bash
 
-# 1. 更新系统软件包
-echo "正在更新系统..."
-apt-get update
+# 部署脚本 (在服务器上运行)
 
-# 2. 安装 Docker 和 Git
-echo "正在安装 Docker..."
+# 1. 检查是否安装 Docker
 if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com | sh
-else
-    echo "Docker 已安装"
+    echo "未检测到 Docker，正在安装..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sh get-docker.sh
 fi
 
-echo "正在安装 Git..."
-apt-get install -y git docker-compose-plugin
-
-# 3. 拉取代码
-# 注意：如果仓库是私有的，这里需要手动输入账号密码，或者使用 Personal Access Token
-echo "正在拉取代码..."
-if [ -d "coze" ]; then
-    echo "目录 coze 已存在，正在更新..."
-    cd coze
-    git pull
-else
-    git clone https://github.com/youta2025/coze.git
-    cd coze
+# 2. 检查是否安装 Docker Compose
+if ! command -v docker-compose &> /dev/null; then
+    echo "未检测到 Docker Compose，正在安装..."
+    sudo curl -L "https://github.com/docker/compose/releases/download/v2.24.1/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
 fi
+
+# 3. 拉取最新代码
+echo "正在拉取最新代码..."
+git pull origin main || {
+    echo "拉取失败，尝试重新克隆..."
+    cd ..
+    rm -rf image
+    # 注意：这里假设您已经配置好了 SSH Key 或者 Token
+    # 如果是私有仓库，请确保服务器有权限
+    git clone https://github.com/youta2025/image.git
+    cd image
+}
 
 # 4. 启动服务
 echo "正在启动服务..."
-docker compose down
-docker compose up -d --build
+# 停止旧容器
+docker-compose down
+# 构建并启动新容器
+docker-compose up -d --build
 
-# 5. 检查状态
-echo "部署完成！正在检查服务状态..."
-sleep 5
-curl -v http://localhost:3002/api/health
-
-echo ""
-echo "----------------------------------------"
-echo "服务已在后台运行。"
-echo "查看日志请运行: docker compose logs -f"
-echo "公网访问地址: http://$(curl -s ifconfig.me):3002/api/screenshot"
-echo "----------------------------------------"
+echo "部署完成！"
+echo "请访问: http://$(curl -s ifconfig.me):3003"

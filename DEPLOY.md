@@ -62,18 +62,37 @@
 
 ### Cloudflare HTTPS Setup (推荐)
 
-如果您希望使用 Cloudflare 提供的免费 HTTPS，有两种方式：
+如果您希望使用 Cloudflare 提供的免费 HTTPS，有以下几种方式：
 
-#### 方式一：Cloudflare Proxy (最简单)
-1.  将您的域名解析到 Cloudflare。
-2.  在 DNS 设置中，将 A 记录指向服务器 IP (`115.191.14.89`)，并开启 **Proxy status** (橙色云朵)。
-3.  在 SSL/TLS 设置中开启 **Always Use HTTPS**。
-4.  Cloudflare 会自动处理 HTTPS，并转发请求到您的 HTTP 端口。
+#### 方式一：快速临时隧道 (Quick Tunnel) - **最简单，无需域名**
+这是您提到的生成 `trycloudflare.com` 网址的方法。它不需要您拥有域名，也不需要配置 DNS。
 
-#### 方式二：Cloudflare Tunnel (更安全，无需公网端口)
-Cloudflare Tunnel (cloudflared) 可以让您的服务器在不暴露任何入站端口的情况下连接到 Cloudflare 网络。
+1.  **安装 cloudflared** (如果已安装可跳过):
+    ```bash
+    curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+    sudo dpkg -i cloudflared.deb
+    ```
 
-1.  **安装 cloudflared** (在服务器上运行):
+2.  **直接运行命令**:
+    ```bash
+    cloudflared tunnel --url http://localhost:3003
+    ```
+
+3.  **获取网址**:
+    终端会输出一个类似这样的框，里面的 `https://xxxx-xxxx.trycloudflare.com` 就是您的公网 HTTPS 地址：
+    ```
+    +--------------------------------------------------------------------------------------------+
+    |  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |
+    |  https://haven-insertion-climb-must.trycloudflare.com                                    |
+    +--------------------------------------------------------------------------------------------+
+    ```
+    *注意：这种方式生成的网址是临时的，每次重启命令网址可能会变。*
+
+#### 方式二：绑定自定义域名 (稳定长期使用)
+如果您希望使用固定的域名（如 `api.yourdomain.com`），请使用此方法。
+
+1.  **登录 Cloudflare**:
+
     ```bash
     # 下载并安装
     curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb

@@ -155,3 +155,36 @@ ports:
     ```bash
     git clone https://<your-username>:<your-token>@github.com/your-username/image-workshop.git
     ```
+
+### API 调用示例
+
+**使用新的 Cloudflare 地址：**
+`https://practitioner-brothers-protest-owned.trycloudflare.com`
+
+**cURL 示例：**
+```bash
+curl -X POST https://practitioner-brothers-protest-owned.trycloudflare.com/api/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "imageUrl": "https://practitioner-brothers-protest-owned.trycloudflare.com/uploads/your-image-id.jpg",
+    "options": {
+      "subtitle": "STEP 01 接收用户指令",
+      "themeColor": "#3B82F6",
+      "textColor": "#cccccc",
+      "footerColor": "#000000",
+      "footerOpacity": 0.7,
+      "strokeWidth": 4,
+      "borderStyle": "double",
+      "borderRadius": { "tl": 20, "tr": 20, "bl": 20, "br": 20 },
+      "perspective": true
+    }
+  }'
+```
+
+> **注意**：新增的 `"perspective": true` 参数可以开启 3D 透视变形效果。为了支持此功能，您需要重新构建 Docker 镜像（因为需要安装系统依赖 ImageMagick）。
+>
+> **更新部署命令**：
+> ```bash
+> git pull
+> docker-compose up -d --build
+> ```

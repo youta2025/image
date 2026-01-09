@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { spawn } from 'child_process';
 // fetch is available globally in Node 18+
 
 const router = Router();
@@ -28,8 +29,79 @@ interface ProcessRequestBody {
     textColor?: string;
     footerColor?: string;
     footerOpacity?: number;
+    perspective?: boolean;
   };
   outputFormat?: 'jpg' | 'png' | 'webp';
+}
+
+/**
+ * Apply perspective transform using ImageMagick
+ */
+function applyPerspective(inputBuffer: Buffer, width: number, height: number): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        // Calculate control points for a "tilt back" effect
+        // 15% perspective on top
+        const factor = 0.15;
+        const xOffset = width * factor;
+        const yOffset = height * (factor * 0.5);
+        
+        // Source: TL, TR, BL, BR
+        // Dest:   TL', TR', BL', BR'
+        // TL(0,0) -> (xOffset, yOffset)
+        // TR(W,0) -> (W-xOffset, yOffset)
+        // BL(0,H) -> (0, H)
+        // BR(W,H) -> (W, H)
+        
+        const p0 = `0,0 ${xOffset},${yOffset}`;         // TL
+        const p1 = `${width},0 ${width - xOffset},${yOffset}`; // TR
+        const p2 = `0,${height} 0,${height}`;           // BL
+        const p3 = `${width},${height} ${width},${height}`;    // BR
+        
+        // Use ImageMagick 'convert' to apply perspective distortion
+        // -alpha set: ensure alpha channel exists
+        // -virtual-pixel transparent: ensure background is transparent
+        // -distort Perspective: apply the transform
+        const args = [
+            '-', // Read from stdin
+            '-alpha', 'set', 
+            '-virtual-pixel', 'transparent',
+            '-distort', 'Perspective', `${p0}  ${p1}  ${p2}  ${p3}`,
+            '-' // Write to stdout
+        ];
+
+        // Try to spawn 'convert' (ImageMagick 6) or 'magick' (ImageMagick 7)
+        // We'll try 'convert' first as it's common on Linux
+        const proc = spawn('convert', args);
+        
+        const chunks: Buffer[] = [];
+        proc.stdout.on('data', (chunk) => chunks.push(chunk));
+        proc.stdout.on('end', () => {
+            if (chunks.length === 0) {
+                // If no output, maybe command failed silently or not found?
+                // Resolve with original buffer to be safe
+                console.warn('ImageMagick produced no output, returning original image.');
+                resolve(inputBuffer);
+            } else {
+                resolve(Buffer.concat(chunks));
+            }
+        });
+        
+        proc.stderr.on('data', (data) => {
+             // ImageMagick might output warnings to stderr, not necessarily errors
+             // Only treat as fatal if we get no stdout
+             // console.warn(`ImageMagick stderr: ${data}`);
+        });
+        
+        proc.on('error', (err) => {
+            console.error('Failed to spawn ImageMagick (perspective transform skipped):', err.message);
+            // Fallback: return original buffer
+            resolve(inputBuffer); 
+        });
+        
+        // Write input image to stdin
+        proc.stdin.write(inputBuffer);
+        proc.stdin.end();
+    });
 }
 
 /**
@@ -294,8 +366,15 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     .png()
     .toBuffer();
 
+    let outputBuffer = finalCard;
+
+    // Apply Perspective if requested
+    if (options.perspective) {
+        outputBuffer = await applyPerspective(finalCard, CARD_WIDTH, CARD_HEIGHT);
+    }
+
     // 5. Final Output
-    const finalOutput = await sharp(finalCard)
+    const finalOutput = await sharp(outputBuffer)
         .toFormat(outputFormat === 'jpg' ? 'jpeg' : outputFormat as any)
         .toBuffer();
 

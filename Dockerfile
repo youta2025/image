@@ -32,6 +32,9 @@ COPY --from=builder /app/public ./public
 # Ensure uploads directory exists
 RUN mkdir -p public/uploads
 
+# Install ImageMagick for perspective transformations
+RUN apk add --no-cache imagemagick
+
 # Install minimal production tools if needed (optional)
 # sharp requires native dependencies, alpine usually handles it if prebuilt binaries are compatible
 # If sharp fails, we might need: RUN apk add --no-cache vips-dev

@@ -29,6 +29,14 @@ interface ProcessRequestBody {
     textColor?: string;
     footerColor?: string;
     footerOpacity?: number;
+    // Free distortion options (offsets for each corner)
+    distortion?: {
+        tl?: { x: number; y: number };
+        tr?: { x: number; y: number };
+        bl?: { x: number; y: number };
+        br?: { x: number; y: number };
+    };
+    // Legacy simple perspective boolean
     perspective?: boolean;
   };
   outputFormat?: 'jpg' | 'png' | 'webp';
@@ -37,25 +45,40 @@ interface ProcessRequestBody {
 /**
  * Apply perspective transform using ImageMagick
  */
-function applyPerspective(inputBuffer: Buffer, width: number, height: number): Promise<Buffer> {
+function applyPerspective(inputBuffer: Buffer, width: number, height: number, distortion?: ProcessRequestBody['options']['distortion']): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-        // Calculate control points for a "tilt back" effect
-        // 15% perspective on top
-        const factor = 0.15;
-        const xOffset = width * factor;
-        const yOffset = height * (factor * 0.5);
-        
-        // Source: TL, TR, BL, BR
-        // Dest:   TL', TR', BL', BR'
-        // TL(0,0) -> (xOffset, yOffset)
-        // TR(W,0) -> (W-xOffset, yOffset)
-        // BL(0,H) -> (0, H)
-        // BR(W,H) -> (W, H)
-        
-        const p0 = `0,0 ${xOffset},${yOffset}`;         // TL
-        const p1 = `${width},0 ${width - xOffset},${yOffset}`; // TR
-        const p2 = `0,${height} 0,${height}`;           // BL
-        const p3 = `${width},${height} ${width},${height}`;    // BR
+        let p0, p1, p2, p3;
+
+        if (distortion) {
+            // Use custom distortion offsets
+            // TL
+            const x0 = 0 + (distortion.tl?.x || 0);
+            const y0 = 0 + (distortion.tl?.y || 0);
+            // TR
+            const x1 = width + (distortion.tr?.x || 0);
+            const y1 = 0 + (distortion.tr?.y || 0);
+            // BL
+            const x2 = 0 + (distortion.bl?.x || 0);
+            const y2 = height + (distortion.bl?.y || 0);
+            // BR
+            const x3 = width + (distortion.br?.x || 0);
+            const y3 = height + (distortion.br?.y || 0);
+
+            p0 = `0,0 ${x0},${y0}`;
+            p1 = `${width},0 ${x1},${y1}`;
+            p2 = `0,${height} ${x2},${y2}`;
+            p3 = `${width},${height} ${x3},${y3}`;
+        } else {
+            // Default "tilt back" effect if no custom distortion provided
+            const factor = 0.15;
+            const xOffset = width * factor;
+            const yOffset = height * (factor * 0.5);
+            
+            p0 = `0,0 ${xOffset},${yOffset}`;         // TL
+            p1 = `${width},0 ${width - xOffset},${yOffset}`; // TR
+            p2 = `0,${height} 0,${height}`;           // BL
+            p3 = `${width},${height} ${width},${height}`;    // BR
+        }
         
         // Use ImageMagick 'convert' to apply perspective distortion
         // -alpha set: ensure alpha channel exists
@@ -369,8 +392,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
     let outputBuffer = finalCard;
 
     // Apply Perspective if requested
-    if (options.perspective) {
-        outputBuffer = await applyPerspective(finalCard, CARD_WIDTH, CARD_HEIGHT);
+    if (options.perspective || options.distortion) {
+        outputBuffer = await applyPerspective(finalCard, CARD_WIDTH, CARD_HEIGHT, options.distortion);
     }
 
     // 5. Final Output

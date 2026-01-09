@@ -161,7 +161,7 @@ ports:
 **使用新的 Cloudflare 地址：**
 `https://practitioner-brothers-protest-owned.trycloudflare.com`
 
-**cURL 示例：**
+**cURL 示例 (包含变形参数)：**
 ```bash
 curl -X POST https://practitioner-brothers-protest-owned.trycloudflare.com/api/process \
   -H "Content-Type: application/json" \
@@ -176,12 +176,21 @@ curl -X POST https://practitioner-brothers-protest-owned.trycloudflare.com/api/p
       "strokeWidth": 4,
       "borderStyle": "double",
       "borderRadius": { "tl": 20, "tr": 20, "bl": 20, "br": 20 },
-      "perspective": true
+      "distortion": {
+        "tl": { "x": 10, "y": 20 },
+        "tr": { "x": -10, "y": 20 },
+        "bl": { "x": 0, "y": 0 },
+        "br": { "x": 0, "y": 0 }
+      }
     }
   }'
 ```
 
-> **注意**：新增的 `"perspective": true` 参数可以开启 3D 透视变形效果。为了支持此功能，您需要重新构建 Docker 镜像（因为需要安装系统依赖 ImageMagick）。
+> **参数说明**:
+> *   `distortion`: 自由变形参数，您可以指定四个角（`tl`: 左上, `tr`: 右上, `bl`: 左下, `br`: 右下）相对于原始位置的偏移量 (`x`, `y`)。
+> *   `perspective`: 简单的布尔值开关。如果设置为 `true` 且未提供 `distortion`，将应用默认的 3D 倾斜效果。
+
+> **注意**：为了支持此功能，您需要重新构建 Docker 镜像（因为需要安装系统依赖 ImageMagick）。
 >
 > **更新部署命令**：
 > ```bash

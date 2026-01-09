@@ -37,10 +37,16 @@ const PRESET_COLORS = [
 
 const PRESET_FONTS = [
   { name: '默认字体', value: 'sans-serif' },
+  { name: '站酷酷黑', value: '"Zcool KuHei", "ZCOOL KuHei", sans-serif' },
+  { name: '站酷快乐体2016', value: '"Zcool Kuaile", "ZCOOL KuaiLe", sans-serif' },
+  { name: '站酷高端黑', value: '"Zcool GaoDuanHei", "ZCOOL GaoDuanHei", sans-serif' },
+  { name: '站酷庆科黄油体', value: '"Zcool QingKe HuangYou", "ZCOOL QingKe HuangYou", sans-serif' },
+  { name: '站酷小薇LOGO体', value: '"Zcool XiaoWei Logo", "ZCOOL XiaoWei", sans-serif' },
+  { name: '站酷文艺体', value: '"Zcool WenYi", "ZCOOL WenYi", sans-serif' },
+  { name: 'ZCOOL Addict Italic 01', value: '"ZCOOL Addict Italic 01", sans-serif' },
   { name: '思源黑体 (Bold)', value: '"Source Han Sans CN", "Noto Sans SC", sans-serif', weight: '700' },
   { name: '思源宋体 (Heavy)', value: '"Source Han Serif CN", "Noto Serif SC", serif', weight: '900' },
   { name: '优设标题黑', value: '"YouSheBiaoTiHei", sans-serif' },
-  { name: '站酷酷黑', value: '"Zcool KuHei", sans-serif' },
   { name: '庞门正道标题体', value: '"PangMenZhengDao", sans-serif' },
   { name: '微软雅黑 (粗)', value: 'Microsoft YaHei, sans-serif', weight: 'bold' },
   { name: 'Impact (英文海报)', value: 'Impact, sans-serif' },

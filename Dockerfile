@@ -32,14 +32,15 @@ COPY --from=builder /app/api ./api
 # Copy public folder for uploads structure
 COPY --from=builder /app/public ./public
 
+# Copy custom fonts
+COPY --from=builder /app/fonts /usr/share/fonts/custom/
+
 # Ensure uploads directory exists
 RUN mkdir -p public/uploads
 
-# Install ImageMagick (Optional, kept for compatibility)
-# Using dl-cdn.alpinelinux.org can be slow, switching to mirrors if needed, 
-# but usually alpine mirror is fast enough. 
-# We can remove ImageMagick if we are fully JS now, but keeping it is safer.
-RUN apk add --no-cache imagemagick font-noto-cjk
+# Install ImageMagick and refresh fonts
+RUN apk add --no-cache imagemagick font-noto-cjk fontconfig && \
+    fc-cache -fv
 
 # Expose the port the app runs on
 EXPOSE 3002

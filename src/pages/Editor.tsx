@@ -17,15 +17,6 @@ interface CardOptions {
     tl: { x: number; y: number };
     tr: { x: number; y: number };
     bl: { x: number; y: number };
-    br: number; // br is kept simple here but in state it might be obj? Wait, API expects obj for all.
-  };
-  // Actually, let's fix the interface to match what we need
-  // API expects: distortion: { tl: {x,y}, tr: {x,y}, bl: {x,y}, br: {x,y} }
-  // We should match that structure in state
-  distortionConfig: {
-    tl: { x: number; y: number };
-    tr: { x: number; y: number };
-    bl: { x: number; y: number };
     br: { x: number; y: number };
   };
   textColor: string;
@@ -52,7 +43,7 @@ export default function Editor() {
     strokeWidth: 4,
     borderStyle: 'solid',
     borderRadius: { tl: 20, tr: 20, bl: 20, br: 20 },
-    distortionConfig: {
+    distortion: {
       tl: { x: 0, y: 0 },
       tr: { x: 0, y: 0 },
       bl: { x: 0, y: 0 },
@@ -108,10 +99,7 @@ export default function Editor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: originalImage,
-          options: {
-            ...options,
-            distortion: options.distortionConfig
-          },
+          options: options,
           outputFormat: 'png'
         }),
       });
@@ -150,13 +138,13 @@ export default function Editor() {
   };
 
   // Helper to update distortion
-  const updateDistortion = (corner: keyof typeof options.distortionConfig, axis: 'x' | 'y', value: number) => {
+  const updateDistortion = (corner: keyof typeof options.distortion, axis: 'x' | 'y', value: number) => {
     setOptions(prev => ({
       ...prev,
-      distortionConfig: {
-        ...prev.distortionConfig,
+      distortion: {
+        ...prev.distortion,
         [corner]: {
-          ...prev.distortionConfig[corner],
+          ...prev.distortion[corner],
           [axis]: value
         }
       }
@@ -373,7 +361,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.tl.x}
+                            value={options.distortion.tl.x}
                             onChange={(e) => updateDistortion('tl', 'x', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -382,7 +370,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.tl.y}
+                            value={options.distortion.tl.y}
                             onChange={(e) => updateDistortion('tl', 'y', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -398,7 +386,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.tr.x}
+                            value={options.distortion.tr.x}
                             onChange={(e) => updateDistortion('tr', 'x', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -407,7 +395,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.tr.y}
+                            value={options.distortion.tr.y}
                             onChange={(e) => updateDistortion('tr', 'y', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -423,7 +411,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.bl.x}
+                            value={options.distortion.bl.x}
                             onChange={(e) => updateDistortion('bl', 'x', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -432,7 +420,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.bl.y}
+                            value={options.distortion.bl.y}
                             onChange={(e) => updateDistortion('bl', 'y', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -448,7 +436,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.br.x}
+                            value={options.distortion.br.x}
                             onChange={(e) => updateDistortion('br', 'x', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -457,7 +445,7 @@ export default function Editor() {
                           <input 
                             type="number" 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
-                            value={options.distortionConfig.br.y}
+                            value={options.distortion.br.y}
                             onChange={(e) => updateDistortion('br', 'y', parseInt(e.target.value) || 0)}
                           />
                         </div>

@@ -24,9 +24,16 @@ export default function APIDocs() {
       "textColor": "#cccccc",
       "footerColor": "#000000",
       "footerOpacity": 0.7,
+      "fontFamily": "sans-serif",
       "strokeWidth": 4,
       "borderStyle": "double",
-      "borderRadius": { "tl": 20, "tr": 20, "bl": 20, "br": 20 }
+      "borderRadius": { "tl": 20, "tr": 20, "bl": 20, "br": 20 },
+      "distortion": {
+        "tl": { "x": 0, "y": 0 },
+        "tr": { "x": 0, "y": 0 },
+        "bl": { "x": 0, "y": 0 },
+        "br": { "x": 0, "y": 0 }
+      }
     }
   }'`;
 
@@ -137,6 +144,26 @@ export default function APIDocs() {
                         <td className="px-3 py-2 font-mono text-indigo-600">options.textColor</td>
                         <td className="px-3 py-2 text-gray-500">hex</td>
                         <td className="px-3 py-2 text-gray-900">底部文字颜色。</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-mono text-indigo-600">options.footerColor</td>
+                        <td className="px-3 py-2 text-gray-500">hex</td>
+                        <td className="px-3 py-2 text-gray-900">底部背景颜色。</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-mono text-indigo-600">options.footerOpacity</td>
+                        <td className="px-3 py-2 text-gray-500">number</td>
+                        <td className="px-3 py-2 text-gray-900">底部透明度 (0-1)。</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-mono text-indigo-600">options.fontFamily</td>
+                        <td className="px-3 py-2 text-gray-500">string</td>
+                        <td className="px-3 py-2 text-gray-900">字体名称 (e.g. "SimHei", "Microsoft YaHei", "sans-serif")。</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2 font-mono text-indigo-600">options.distortion</td>
+                        <td className="px-3 py-2 text-gray-500">object</td>
+                        <td className="px-3 py-2 text-gray-900">自由变形设置：{`{ tl: {x,y}, tr: {x,y}, ... }`}</td>
                       </tr>
                       <tr>
                         <td className="px-3 py-2 font-mono text-indigo-600">options.borderStyle</td>

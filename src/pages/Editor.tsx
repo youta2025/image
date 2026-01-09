@@ -1,5 +1,5 @@
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, Download, Wand2, Image as ImageIcon, Loader2, AlertCircle, RefreshCw, Type, Palette, Layout, MoveHorizontal, Slash, Square, Maximize, Droplets, Move } from 'lucide-react';
 
 interface CardOptions {
@@ -22,6 +22,7 @@ interface CardOptions {
   textColor: string;
   footerColor: string;
   footerOpacity: number;
+  fontFamily: string;
 }
 const PRESET_COLORS = [
   { name: '蓝色', value: '#3B82F6' },
@@ -33,6 +34,71 @@ const PRESET_COLORS = [
   { name: '白色', value: '#FFFFFF' },
   { name: '灰色', value: '#6B7280' },
 ];
+
+const PRESET_FONTS = [
+  { name: '默认字体', value: 'sans-serif' },
+  { name: '思源黑体 (Bold)', value: '"Source Han Sans CN", "Noto Sans SC", sans-serif', weight: '700' },
+  { name: '思源宋体 (Heavy)', value: '"Source Han Serif CN", "Noto Serif SC", serif', weight: '900' },
+  { name: '优设标题黑', value: '"YouSheBiaoTiHei", sans-serif' },
+  { name: '站酷酷黑', value: '"Zcool KuHei", sans-serif' },
+  { name: '庞门正道标题体', value: '"PangMenZhengDao", sans-serif' },
+  { name: '微软雅黑 (粗)', value: 'Microsoft YaHei, sans-serif', weight: 'bold' },
+  { name: 'Impact (英文海报)', value: 'Impact, sans-serif' },
+  { name: 'Helvetica Neue (Bold)', value: '"Helvetica Neue", Arial, sans-serif', weight: 'bold' },
+];
+
+const NumberInput = ({ value, onChange, className }: { value: number, onChange: (val: number) => void, className?: string }) => {
+  const [localValue, setLocalValue] = useState(value.toString());
+
+  // Update local value when parent value changes externally
+  // We need to avoid resetting if the change originated from this input
+  // But since we control the updates, checking equality is usually enough
+  // However, strict equality might fail if formatted differently.
+  // Simple approach: Always sync, but rely on React's batching and event loop?
+  // Actually, if we type "-", parent value doesn't change, so this effect won't run.
+  // If we type "-1", parent value changes to -1, this effect runs and sets local to "-1". Matches.
+  useEffect(() => {
+    // Only update if the numeric value is different (to avoid cursor jumps or formatting wars if we were doing more complex stuff)
+    // But here we just use toString.
+    if (parseInt(localValue) !== value && localValue !== '-' && localValue !== '') {
+        setLocalValue(value.toString());
+    }
+    // Also handle initial load or external reset
+    if (localValue === '' && value === 0) {
+        setLocalValue('0'); 
+    }
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newVal = e.target.value;
+    setLocalValue(newVal);
+    
+    if (newVal === '' || newVal === '-') {
+        return;
+    }
+    
+    const parsed = parseInt(newVal);
+    if (!isNaN(parsed)) {
+        onChange(parsed);
+    }
+  };
+
+  const handleBlur = () => {
+      if (localValue === '' || localValue === '-') {
+          setLocalValue(value.toString());
+      }
+  };
+
+  return (
+    <input 
+      type="number"
+      className={className}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+    />
+  );
+};
 
 export default function Editor() {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -51,7 +117,8 @@ export default function Editor() {
     },
     textColor: '#cccccc',
     footerColor: '#000000',
-    footerOpacity: 0.7
+    footerOpacity: 0.7,
+    fontFamily: 'sans-serif'
   });
 
   const [uploading, setUploading] = useState(false);
@@ -284,6 +351,21 @@ export default function Editor() {
                         className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
                   </div>
+
+                  <div className="mt-4">
+                    <label className="block text-xs text-gray-500 mb-1">字体选择</label>
+                    <select
+                      value={options.fontFamily}
+                      onChange={(e) => setOptions({...options, fontFamily: e.target.value})}
+                      className="block w-full pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md border"
+                    >
+                      {PRESET_FONTS.map((font) => (
+                        <option key={font.name} value={font.value}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 {/* Border Settings */}
@@ -358,20 +440,18 @@ export default function Editor() {
                       <div className="flex space-x-2">
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">X</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.tl.x}
-                            onChange={(e) => updateDistortion('tl', 'x', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('tl', 'x', val)}
                           />
                         </div>
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">Y</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.tl.y}
-                            onChange={(e) => updateDistortion('tl', 'y', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('tl', 'y', val)}
                           />
                         </div>
                       </div>
@@ -383,20 +463,18 @@ export default function Editor() {
                       <div className="flex space-x-2">
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">X</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.tr.x}
-                            onChange={(e) => updateDistortion('tr', 'x', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('tr', 'x', val)}
                           />
                         </div>
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">Y</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.tr.y}
-                            onChange={(e) => updateDistortion('tr', 'y', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('tr', 'y', val)}
                           />
                         </div>
                       </div>
@@ -408,20 +486,18 @@ export default function Editor() {
                       <div className="flex space-x-2">
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">X</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.bl.x}
-                            onChange={(e) => updateDistortion('bl', 'x', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('bl', 'x', val)}
                           />
                         </div>
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">Y</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.bl.y}
-                            onChange={(e) => updateDistortion('bl', 'y', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('bl', 'y', val)}
                           />
                         </div>
                       </div>
@@ -433,20 +509,18 @@ export default function Editor() {
                       <div className="flex space-x-2">
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">X</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.br.x}
-                            onChange={(e) => updateDistortion('br', 'x', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('br', 'x', val)}
                           />
                         </div>
                         <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
                           <span className="text-xs text-gray-400 mr-1">Y</span>
-                          <input 
-                            type="number" 
+                          <NumberInput 
                             className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
                             value={options.distortion.br.y}
-                            onChange={(e) => updateDistortion('br', 'y', parseInt(e.target.value) || 0)}
+                            onChange={(val) => updateDistortion('br', 'y', val)}
                           />
                         </div>
                       </div>
@@ -468,42 +542,34 @@ export default function Editor() {
                     <div className="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded-md border border-gray-200">
                         <div>
                             <span className="text-xs text-gray-500 block mb-1">左上 (TL)</span>
-                            <input 
-                                type="number" 
-                                min="0" max="100"
-                                value={options.borderRadius.tl}
-                                onChange={(e) => updateRadius('tl', parseInt(e.target.value) || 0)}
+                            <NumberInput 
                                 className="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                value={options.borderRadius.tl}
+                                onChange={(val) => updateRadius('tl', val)}
                             />
                         </div>
                         <div>
                             <span className="text-xs text-gray-500 block mb-1">右上 (TR)</span>
-                            <input 
-                                type="number" 
-                                min="0" max="100"
-                                value={options.borderRadius.tr}
-                                onChange={(e) => updateRadius('tr', parseInt(e.target.value) || 0)}
+                            <NumberInput 
                                 className="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                value={options.borderRadius.tr}
+                                onChange={(val) => updateRadius('tr', val)}
                             />
                         </div>
                         <div>
                             <span className="text-xs text-gray-500 block mb-1">左下 (BL)</span>
-                            <input 
-                                type="number" 
-                                min="0" max="100"
-                                value={options.borderRadius.bl}
-                                onChange={(e) => updateRadius('bl', parseInt(e.target.value) || 0)}
+                            <NumberInput 
                                 className="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                value={options.borderRadius.bl}
+                                onChange={(val) => updateRadius('bl', val)}
                             />
                         </div>
                         <div>
                             <span className="text-xs text-gray-500 block mb-1">右下 (BR)</span>
-                            <input 
-                                type="number" 
-                                min="0" max="100"
-                                value={options.borderRadius.br}
-                                onChange={(e) => updateRadius('br', parseInt(e.target.value) || 0)}
+                            <NumberInput 
                                 className="w-full text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                value={options.borderRadius.br}
+                                onChange={(val) => updateRadius('br', val)}
                             />
                         </div>
                     </div>

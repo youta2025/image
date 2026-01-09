@@ -29,6 +29,7 @@ interface ProcessRequestBody {
     textColor?: string;
     footerColor?: string;
     footerOpacity?: number;
+    fontFamily?: string;
     // Free distortion options (offsets for each corner)
     distortion?: {
         tl?: { x: number; y: number };
@@ -43,94 +44,239 @@ interface ProcessRequestBody {
 }
 
 /**
- * Apply perspective transform using ImageMagick
+ * Pure JS implementation of Perspective Transform
  */
-function applyPerspective(inputBuffer: Buffer, width: number, height: number, distortion?: ProcessRequestBody['options']['distortion']): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-        let p0, p1, p2, p3;
+class PerspectiveTransform {
+    matrix: number[];
 
-        if (distortion) {
-            // Use custom distortion offsets
-            // TL
-            const x0 = 0 + (distortion.tl?.x || 0);
-            const y0 = 0 + (distortion.tl?.y || 0);
-            // TR
-            const x1 = width + (distortion.tr?.x || 0);
-            const y1 = 0 + (distortion.tr?.y || 0);
-            // BL
-            const x2 = 0 + (distortion.bl?.x || 0);
-            const y2 = height + (distortion.bl?.y || 0);
-            // BR
-            const x3 = width + (distortion.br?.x || 0);
-            const y3 = height + (distortion.br?.y || 0);
+    constructor(srcPts: number[], dstPts: number[]) {
+        // srcPts: [x0, y0, x1, y1, x2, y2, x3, y3] (Target rectangle, where we want to sample FROM)
+        // dstPts: [u0, v0, u1, v1, u2, v2, u3, v3] (Distorted quad, where we are iterating pixels)
+        // We want a matrix that maps DST (distorted) -> SRC (original image coordinates)
+        // So we can iterate over DST pixels (x,y), transform them to SRC (u,v), and sample color.
+        
+        // This calculates the homography matrix H such that H * dst = src
+        this.matrix = this.getHomographyMatrix(dstPts, srcPts);
+    }
 
-            p0 = `0,0 ${x0},${y0}`;
-            p1 = `${width},0 ${x1},${y1}`;
-            p2 = `0,${height} ${x2},${y2}`;
-            p3 = `${width},${height} ${x3},${y3}`;
-        } else {
-            // Default "tilt back" effect if no custom distortion provided
-            const factor = 0.15;
-            const xOffset = width * factor;
-            const yOffset = height * (factor * 0.5);
-            
-            p0 = `0,0 ${xOffset},${yOffset}`;         // TL
-            p1 = `${width},0 ${width - xOffset},${yOffset}`; // TR
-            p2 = `0,${height} 0,${height}`;           // BL
-            p3 = `${width},${height} ${width},${height}`;    // BR
+    // Solves for H such that H * p1 = p2
+    getHomographyMatrix(src: number[], dst: number[]): number[] {
+        let a: number[][] = [];
+        let b: number[] = [];
+
+        for (let i = 0; i < 4; i++) {
+            let x = src[2 * i];
+            let y = src[2 * i + 1];
+            let u = dst[2 * i];
+            let v = dst[2 * i + 1];
+
+            a.push([x, y, 1, 0, 0, 0, -x * u, -y * u]);
+            a.push([0, 0, 0, x, y, 1, -x * v, -y * v]);
+            b.push(u);
+            b.push(v);
         }
-        
-        // Use ImageMagick 'convert' to apply perspective distortion
-        // -alpha set: ensure alpha channel exists
-        // -virtual-pixel transparent: ensure background is transparent
-        // -distort Perspective: apply the transform
-        const args = [
-             '-', // Read from stdin
-             '-alpha', 'set', 
-             '-virtual-pixel', 'transparent',
-             '-distort', 'Perspective', `${p0}  ${p1}  ${p2}  ${p3}`,
-             '-' // Write to stdout
-         ];
- 
-         // Try to spawn 'convert' (ImageMagick 6) or 'magick' (ImageMagick 7)
-         // On Windows it is often 'magick', on Linux 'convert'
-         // We'll try 'magick' first for better cross-platform support in modern IM
-         let command = 'convert';
-         if (process.platform === 'win32') {
-            command = 'magick';
-         }
 
-         const proc = spawn(command, args);
-         
-         const chunks: Buffer[] = [];
-        proc.stdout.on('data', (chunk) => chunks.push(chunk));
-        proc.stdout.on('end', () => {
-            if (chunks.length === 0) {
-                // If no output, maybe command failed silently or not found?
-                // Resolve with original buffer to be safe
-                console.warn('ImageMagick produced no output, returning original image.');
-                resolve(inputBuffer);
-            } else {
-                resolve(Buffer.concat(chunks));
+        const h = this.solveGaussian(a, b);
+        h.push(1); // h33 is 1
+        return h;
+    }
+
+    solveGaussian(A: number[][], B: number[]): number[] {
+        const n = A.length;
+        for (let i = 0; i < n; i++) {
+            // Find pivot
+            let maxEl = Math.abs(A[i][i]);
+            let maxRow = i;
+            for (let k = i + 1; k < n; k++) {
+                if (Math.abs(A[k][i]) > maxEl) {
+                    maxEl = Math.abs(A[k][i]);
+                    maxRow = k;
+                }
             }
-        });
-        
-        proc.stderr.on('data', (data) => {
-             // ImageMagick might output warnings to stderr, not necessarily errors
-             // Only treat as fatal if we get no stdout
-             // console.warn(`ImageMagick stderr: ${data}`);
-        });
-        
-        proc.on('error', (err) => {
-            console.error('Failed to spawn ImageMagick (perspective transform skipped):', err.message);
-            // Fallback: return original buffer instead of crashing
-            resolve(inputBuffer); 
-        });
-        
-        // Write input image to stdin
-        proc.stdin.write(inputBuffer);
-        proc.stdin.end();
-    });
+
+            // Swap max row with current row
+            for (let k = i; k < n; k++) {
+                const tmp = A[maxRow][k];
+                A[maxRow][k] = A[i][k];
+                A[i][k] = tmp;
+            }
+            const tmp = B[maxRow];
+            B[maxRow] = B[i];
+            B[i] = tmp;
+
+            // Make all rows below this one 0 in current column
+            for (let k = i + 1; k < n; k++) {
+                const c = -A[k][i] / A[i][i];
+                for (let j = i; j < n; j++) {
+                    if (i === j) {
+                        A[k][j] = 0;
+                    } else {
+                        A[k][j] += c * A[i][j];
+                    }
+                }
+                B[k] += c * B[i];
+            }
+        }
+
+        // Solve equation Ax=B for an upper triangular matrix A
+        const x = new Array(n).fill(0);
+        for (let i = n - 1; i > -1; i--) {
+            let sum = 0;
+            for (let j = i + 1; j < n; j++) {
+                sum += A[i][j] * x[j];
+            }
+            x[i] = (B[i] - sum) / A[i][i];
+        }
+        return x;
+    }
+
+    transformPoint(x: number, y: number): { x: number, y: number } {
+        const m = this.matrix;
+        const w = m[6] * x + m[7] * y + m[8];
+        const tx = (m[0] * x + m[1] * y + m[2]) / w;
+        const ty = (m[3] * x + m[4] * y + m[5]) / w;
+        return { x: tx, y: ty };
+    }
+}
+
+/**
+ * Apply perspective transform using pure JS
+ */
+async function applyPerspective(inputBuffer: Buffer, width: number, height: number, distortion?: ProcessRequestBody['options']['distortion']): Promise<Buffer> {
+    // 1. Get raw pixel data
+    const { data: srcData, info } = await sharp(inputBuffer)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+    
+    const srcWidth = info.width;
+    const srcHeight = info.height;
+    const channels = info.channels; // Should be 4 (RGBA)
+
+    // 2. Define corners
+    // Source: The original image rectangle
+    const srcCorners = [
+        0, 0,                // TL
+        srcWidth, 0,         // TR
+        srcWidth, srcHeight, // BR
+        0, srcHeight         // BL
+    ];
+
+    // Destination: The distorted quad
+    // Note: 'distortion' object contains offsets relative to the corners
+    let dstCorners: number[];
+    if (distortion) {
+        dstCorners = [
+            0 + (distortion.tl?.x || 0), 0 + (distortion.tl?.y || 0),
+            srcWidth + (distortion.tr?.x || 0), 0 + (distortion.tr?.y || 0),
+            srcWidth + (distortion.br?.x || 0), srcHeight + (distortion.br?.y || 0),
+            0 + (distortion.bl?.x || 0), srcHeight + (distortion.bl?.y || 0)
+        ];
+    } else {
+        // Default tilt
+        const factor = 0.15;
+        const xOffset = srcWidth * factor;
+        const yOffset = srcHeight * (factor * 0.5);
+        dstCorners = [
+            0, 0, 
+            srcWidth, 0, 
+            srcWidth - xOffset, srcHeight - yOffset, 
+            xOffset, srcHeight - yOffset
+        ];
+        // Wait, the default logic in original code was:
+        // p0 = `0,0 ${xOffset},${yOffset}`; // TL moves IN
+        // p1 = `${width},0 ${width - xOffset},${yOffset}`; // TR moves IN
+        // p2 = `0,${height} 0,${height}`; // BL stays
+        // p3 = `${width},${height} ${width},${height}`; // BR stays
+        // Let's match that:
+        dstCorners = [
+            xOffset, yOffset,
+            srcWidth - xOffset, yOffset,
+            srcWidth, srcHeight,
+            0, srcHeight
+        ];
+    }
+
+    // 3. Calculate Bounding Box of the distorted image
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < dstCorners.length; i += 2) {
+        const x = dstCorners[i];
+        const y = dstCorners[i + 1];
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+    }
+
+    // Round dimensions to integers
+    minX = Math.floor(minX);
+    minY = Math.floor(minY);
+    maxX = Math.ceil(maxX);
+    maxY = Math.ceil(maxY);
+
+    const newWidth = maxX - minX;
+    const newHeight = maxY - minY;
+
+    // Shift dstCorners to be relative to the new bounding box (0, 0)
+    const shiftedDstCorners = [];
+    for (let i = 0; i < dstCorners.length; i += 2) {
+        shiftedDstCorners.push(dstCorners[i] - minX);
+        shiftedDstCorners.push(dstCorners[i + 1] - minY);
+    }
+
+    // 4. Calculate transform matrix
+    // Map Shifted Destination (new canvas coords) -> Source (original image coords)
+    const transform = new PerspectiveTransform(srcCorners, shiftedDstCorners);
+
+    // 5. Create output buffer with new dimensions
+    const dstBuffer = Buffer.alloc(newWidth * newHeight * channels);
+    
+    // 6. Iterate over output pixels
+    for (let y = 0; y < newHeight; y++) {
+        for (let x = 0; x < newWidth; x++) {
+            // Find corresponding source coordinate
+            const srcPt = transform.transformPoint(x, y);
+            const u = srcPt.x;
+            const v = srcPt.y;
+
+            // Check if within bounds of source image
+            if (u >= 0 && u < srcWidth - 1 && v >= 0 && v < srcHeight - 1) {
+                // Bilinear interpolation
+                const u_floor = Math.floor(u);
+                const v_floor = Math.floor(v);
+                const u_ratio = u - u_floor;
+                const v_ratio = v - v_floor;
+                const u_opp = 1 - u_ratio;
+                const v_opp = 1 - v_ratio;
+
+                const idx0 = (v_floor * srcWidth + u_floor) * channels;
+                const idx1 = (v_floor * srcWidth + u_floor + 1) * channels;
+                const idx2 = ((v_floor + 1) * srcWidth + u_floor) * channels;
+                const idx3 = ((v_floor + 1) * srcWidth + u_floor + 1) * channels;
+
+                const dstIdx = (y * newWidth + x) * channels;
+
+                for (let c = 0; c < channels; c++) {
+                    const val = 
+                        (srcData[idx0 + c] * u_opp + srcData[idx1 + c] * u_ratio) * v_opp +
+                        (srcData[idx2 + c] * u_opp + srcData[idx3 + c] * u_ratio) * v_ratio;
+                    
+                    dstBuffer[dstIdx + c] = val;
+                }
+            } else {
+                // Out of bounds - transparent (already 0)
+            }
+        }
+    }
+
+    // 7. Return new image
+    return sharp(dstBuffer, {
+        raw: {
+            width: newWidth,
+            height: newHeight,
+            channels: channels as 1 | 2 | 3 | 4
+        }
+    }).png().toBuffer();
 }
 
 /**
@@ -230,7 +376,8 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         borderRadius = { tl: 20, tr: 20, bl: 20, br: 20 },
         textColor = '#cccccc',
         footerColor = '#000000',
-        footerOpacity = 0.7
+        footerOpacity = 0.7,
+        fontFamily = 'sans-serif'
     } = options;
 
     if (!imageUrl) {
@@ -307,10 +454,20 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
 
     // 3.3 Text Overlay
     const safeSubtitle = subtitle.replace(/[<>&]/g, '');
+    const fontToUse = fontFamily || 'sans-serif';
+    // If it's a list, wrap in quotes? SVG font-family usually takes one or a list.
+    // Sharp's SVG rendering (librsvg) might be picky about quotes around family names.
+    // Generally standard CSS syntax works.
+    
     const textSvg = `
       <svg width="${CARD_WIDTH}" height="${CARD_HEIGHT}" viewBox="0 0 ${CARD_WIDTH} ${CARD_HEIGHT}">
         <style>
-          .text { fill: ${textColor}; font-family: sans-serif; font-size: 16px; font-weight: bold; }
+          .text { 
+            fill: ${textColor}; 
+            font-family: ${fontToUse}; 
+            font-size: 16px; 
+            font-weight: bold; 
+          }
         </style>
         <text x="20" y="${CARD_HEIGHT - 25}" class="text">${safeSubtitle}</text>
       </svg>

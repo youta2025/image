@@ -4,7 +4,7 @@ import fetch from 'node-fetch';
 import FormData from 'form-data';
 
 // 配置：替换为您的服务器地址和端口
-const API_BASE_URL = 'http://115.191.14.89:3003/api';
+const API_BASE_URL = 'https://practitioner-brothers-protest-owned.trycloudflare.com/api';
 
 /**
  * 1. 上传图片

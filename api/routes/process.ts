@@ -85,18 +85,24 @@ function applyPerspective(inputBuffer: Buffer, width: number, height: number, di
         // -virtual-pixel transparent: ensure background is transparent
         // -distort Perspective: apply the transform
         const args = [
-            '-', // Read from stdin
-            '-alpha', 'set', 
-            '-virtual-pixel', 'transparent',
-            '-distort', 'Perspective', `${p0}  ${p1}  ${p2}  ${p3}`,
-            '-' // Write to stdout
-        ];
+             '-', // Read from stdin
+             '-alpha', 'set', 
+             '-virtual-pixel', 'transparent',
+             '-distort', 'Perspective', `${p0}  ${p1}  ${p2}  ${p3}`,
+             '-' // Write to stdout
+         ];
+ 
+         // Try to spawn 'convert' (ImageMagick 6) or 'magick' (ImageMagick 7)
+         // On Windows it is often 'magick', on Linux 'convert'
+         // We'll try 'magick' first for better cross-platform support in modern IM
+         let command = 'convert';
+         if (process.platform === 'win32') {
+            command = 'magick';
+         }
 
-        // Try to spawn 'convert' (ImageMagick 6) or 'magick' (ImageMagick 7)
-        // We'll try 'convert' first as it's common on Linux
-        const proc = spawn('convert', args);
-        
-        const chunks: Buffer[] = [];
+         const proc = spawn(command, args);
+         
+         const chunks: Buffer[] = [];
         proc.stdout.on('data', (chunk) => chunks.push(chunk));
         proc.stdout.on('end', () => {
             if (chunks.length === 0) {
@@ -117,7 +123,7 @@ function applyPerspective(inputBuffer: Buffer, width: number, height: number, di
         
         proc.on('error', (err) => {
             console.error('Failed to spawn ImageMagick (perspective transform skipped):', err.message);
-            // Fallback: return original buffer
+            // Fallback: return original buffer instead of crashing
             resolve(inputBuffer); 
         });
         

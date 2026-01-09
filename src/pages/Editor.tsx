@@ -1,6 +1,6 @@
 
 import { useState, useRef } from 'react';
-import { Upload, Download, Wand2, Image as ImageIcon, Loader2, AlertCircle, RefreshCw, Type, Palette, Layout, MoveHorizontal, Slash, Square, Maximize, Droplets } from 'lucide-react';
+import { Upload, Download, Wand2, Image as ImageIcon, Loader2, AlertCircle, RefreshCw, Type, Palette, Layout, MoveHorizontal, Slash, Square, Maximize, Droplets, Move } from 'lucide-react';
 
 interface CardOptions {
   subtitle: string;
@@ -13,11 +13,25 @@ interface CardOptions {
     bl: number;
     br: number;
   };
+  distortion: {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: number; // br is kept simple here but in state it might be obj? Wait, API expects obj for all.
+  };
+  // Actually, let's fix the interface to match what we need
+  // API expects: distortion: { tl: {x,y}, tr: {x,y}, bl: {x,y}, br: {x,y} }
+  // We should match that structure in state
+  distortionConfig: {
+    tl: { x: number; y: number };
+    tr: { x: number; y: number };
+    bl: { x: number; y: number };
+    br: { x: number; y: number };
+  };
   textColor: string;
   footerColor: string;
   footerOpacity: number;
 }
-
 const PRESET_COLORS = [
   { name: '蓝色', value: '#3B82F6' },
   { name: '紫色', value: '#8B5CF6' },
@@ -38,11 +52,17 @@ export default function Editor() {
     strokeWidth: 4,
     borderStyle: 'solid',
     borderRadius: { tl: 20, tr: 20, bl: 20, br: 20 },
+    distortionConfig: {
+      tl: { x: 0, y: 0 },
+      tr: { x: 0, y: 0 },
+      bl: { x: 0, y: 0 },
+      br: { x: 0, y: 0 }
+    },
     textColor: '#cccccc',
     footerColor: '#000000',
     footerOpacity: 0.7
   });
-  
+
   const [uploading, setUploading] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +108,10 @@ export default function Editor() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           imageUrl: originalImage,
-          options: options,
+          options: {
+            ...options,
+            distortion: options.distortionConfig
+          },
           outputFormat: 'png'
         }),
       });
@@ -122,6 +145,20 @@ export default function Editor() {
         tr: value,
         bl: value,
         br: value
+      }
+    }));
+  };
+
+  // Helper to update distortion
+  const updateDistortion = (corner: keyof typeof options.distortionConfig, axis: 'x' | 'y', value: number) => {
+    setOptions(prev => ({
+      ...prev,
+      distortionConfig: {
+        ...prev.distortionConfig,
+        [corner]: {
+          ...prev.distortionConfig[corner],
+          [axis]: value
+        }
       }
     }));
   };
@@ -317,6 +354,116 @@ export default function Editor() {
                             />
                         </div>
                     </div>
+                </div>
+
+                {/* Distortion Settings */}
+                <div className="border-t border-gray-100 pt-4">
+                  <h3 className="text-sm font-medium text-gray-900 mb-3 flex items-center">
+                    <Move className="h-4 w-4 mr-1 text-gray-500" />
+                    拖拽变形 (自由透视)
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                    {/* Top Left */}
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1 font-medium">左上 (TL)</span>
+                      <div className="flex space-x-2">
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">X</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.tl.x}
+                            onChange={(e) => updateDistortion('tl', 'x', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">Y</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.tl.y}
+                            onChange={(e) => updateDistortion('tl', 'y', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Top Right */}
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1 font-medium">右上 (TR)</span>
+                      <div className="flex space-x-2">
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">X</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.tr.x}
+                            onChange={(e) => updateDistortion('tr', 'x', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">Y</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.tr.y}
+                            onChange={(e) => updateDistortion('tr', 'y', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Left */}
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1 font-medium">左下 (BL)</span>
+                      <div className="flex space-x-2">
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">X</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.bl.x}
+                            onChange={(e) => updateDistortion('bl', 'x', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">Y</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.bl.y}
+                            onChange={(e) => updateDistortion('bl', 'y', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bottom Right */}
+                    <div>
+                      <span className="text-xs text-gray-500 block mb-1 font-medium">右下 (BR)</span>
+                      <div className="flex space-x-2">
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">X</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.br.x}
+                            onChange={(e) => updateDistortion('br', 'x', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="flex items-center bg-gray-50 rounded border border-gray-200 px-2">
+                          <span className="text-xs text-gray-400 mr-1">Y</span>
+                          <input 
+                            type="number" 
+                            className="w-12 text-sm bg-transparent border-none p-1 focus:ring-0"
+                            value={options.distortionConfig.br.y}
+                            onChange={(e) => updateDistortion('br', 'y', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Border Radius */}

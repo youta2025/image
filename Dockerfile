@@ -39,7 +39,7 @@ RUN mkdir -p public/uploads
 # Using dl-cdn.alpinelinux.org can be slow, switching to mirrors if needed, 
 # but usually alpine mirror is fast enough. 
 # We can remove ImageMagick if we are fully JS now, but keeping it is safer.
-RUN apk add --no-cache imagemagick
+RUN apk add --no-cache imagemagick font-noto-cjk
 
 # Expose the port the app runs on
 EXPOSE 3002
